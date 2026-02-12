@@ -1,0 +1,36 @@
+services:
+  app:
+    build: .
+    container_name: write-around-app
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:15
+    container_name: write-around-db
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: write_around_db
+    volumes:
+      - data_postgres_write_around:/var/lib/postgresql/data
+
+  redis:
+    image: redis:latest
+    container_name: write-around-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - data_redis_write_around:/data
+
+volumes:
+  data_postgres_write_around:
+  data_redis_write_around:
