@@ -1,9 +1,7 @@
-from typing import AsyncGenerator
 from sqlmodel import SQLModel
 from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
-DATABASE_URL = "postgresql+asyncpg://postgres:postgres@db:5432/write_around_db"
+from sqlalchemy.ext.asyncio import async_sessionmaker
+from app.config import settings
 
 # --- POOLING ASÍNCRONO POSTGRES ---
 """
@@ -12,12 +10,14 @@ Closing it every request = slow
 So we reuse them → Connection Pool
 """
 engine = create_async_engine(
-    DATABASE_URL,
-    pool_size=5,
-    max_overflow=10,
-    #echo=True,
-    echo_pool=True,
-    pool_recycle=1800,
+    settings.async_database_url,
+    echo=True,            # Enable SQL query logging
+    future=True,          # Use SQLAlchemy 2.0 style
+    pool_pre_ping=True,   # Enable connection pool pre-ping
+    pool_size=10,         # Set the connection pool size
+    max_overflow=20,      # Set the maximum number of overflow connections
+    pool_timeout=30,      # Set the connection timeout in seconds
+    pool_recycle=1800,    # Set the connection recycle time in seconds
 )
 
 # Create singleton async sessionmaker instance
@@ -32,12 +32,3 @@ async def create_all_tables() -> None:
     """
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
-
-
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    """
-    If you don't close the session, connection never returns to the pool, 
-    and you can run out of connections.
-    """
-    async with async_session() as session:
-        yield session

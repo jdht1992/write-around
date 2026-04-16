@@ -1,6 +1,11 @@
-from pydantic import BaseModel
+from sqlmodel import SQLModel
 
 
-class ItemSchema(BaseModel):
+class ItemSchema(SQLModel):
     name: str
+    description: str | None = None
+
+
+class ItemUpdateSchema(SQLModel):
+    name: str | None = None
     description: str | None = None

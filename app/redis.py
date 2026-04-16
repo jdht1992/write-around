@@ -1,11 +1,16 @@
 import redis.asyncio as redis
+from app.config import settings
 
-REDIS_URL = "redis://redis:6379/0"
 
-redis_pool = redis.ConnectionPool.from_url(
-    REDIS_URL, 
-    decode_responses=True, 
-    max_connections=5
-)
+async def get_redis():
 
-redis_client = redis.Redis(connection_pool=redis_pool)
+    pool = redis.ConnectionPool.from_url(
+        settings.async_redis_url,
+        max_connections=10,         # Set the maximum number of connections in the pool
+        socket_timeout=5,           # Set the socket timeout in seconds
+        socket_connect_timeout=5,   # Set the connection timeout in seconds
+        socket_keepalive=True,      # Enable TCP keepalive
+        decode_responses=True,      # Automatically decode responses to strings
+    )
+
+    return redis.Redis(connection_pool=pool)
