@@ -9,6 +9,7 @@ dependencies = [
     "fastapi[standard]>=0.128.7",
     "locust>=2.43.2",
     "psycopg2-binary>=2.9.11",
+    "pytest>=9.0.2",
     "redis>=7.1.1",
     "ruff>=0.15.11",
     "sqlalchemy[asyncio]>=2.0.46",
