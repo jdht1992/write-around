@@ -83,7 +83,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c25c8c2f1a1c19e7ba7e4f8c4c0c7b7a2 # v3.12.0
+        uses: docker/setup-buildx-action@b278ce4ad9693f79d252f93570b663b9767e436b # v3.12.0
 
 
      # Build locally first — Trivy scans this before we push anything
@@ -140,7 +140,7 @@ jobs:
 
       - name: Push image
         id: push
-        uses: docker/build-push-action@4f58ea79220b3119b1898628072b41ef32938869 # v5
+        uses: docker/build-push-action@24e9b7e65fa9b24032c509eea5591c9f61aa18e6 # v6.18.0
         with:
           context: .
           push: true
