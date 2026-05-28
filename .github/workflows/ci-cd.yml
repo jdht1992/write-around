@@ -83,7 +83,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@b278ce4ad9693f79d252f93570b663b9767e436b # v3.12.0
+        uses: docker/setup-buildx-action@d586dba76842633160b90ff13307931c438ec12e # v4.0.0
 
 
      # Build locally first — Trivy scans this before we push anything
