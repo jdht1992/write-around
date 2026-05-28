@@ -13,21 +13,22 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        # Pin to an immutable SHA — never trust :latest or even :15 alone
+        image: postgres:15@sha256:98fe06b500b5eb29e45bf8c073eb0ca399790ce17b1d586448edc4203627d342
         ports:
           - 5432:5432
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: write_around_db
-          options: >-
-            --health-cmd "pg_isready -U postgres"
-            --health-interval 10s
-            --health-timeout 5s
-            --health-retries 5
-
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       redis:
-        image: redis:7
+        # Pin to an immutable SHA
+        image: redis:7@sha256:976ab0f0939b78c06d802bcd3bea44c5142ea9a756a57b861e08819817f768c8
         ports:
           - 6379:6379
         options: >-
@@ -37,11 +38,12 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout code
+        # actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: true          # caches the uv package cache across runs
 
@@ -63,29 +65,90 @@ jobs:
 # ─────────────────────────────────────────
 # JOB 2: Build & Push (only on main merges)
 # ─────────────────────────────────────────
-  build_and_push:
-    name: Build & Push Docker Image
+  build_scan_and_push:
+    name: Build, Scan & Push Docker Image
     runs-on: ubuntu-latest
     needs: test
     if: github.ref == 'refs/heads/main'
+
+    permissions:
+      security-events: write  # required to upload SARIF to GitHub Security tab
+
+    outputs:
+      # Expose the immutable digest for downstream deploy jobs
+      image-digest: ${{ steps.push.outputs.digest }}
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.0
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c25c8c2f1a1c19e7ba7e4f8c4c0c7b7a2 # v3.12.0
+
+
+     # Build locally first — Trivy scans this before we push anything
+      - name: Build image
+        run: |
+          docker build \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_write_around:${{ github.sha }} \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_write_around:latest \
+            .
+
+      # ── Trivy: scan the local image before it ever reaches the registry ──
+      - name: Trivy — image scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_write_around:${{ github.sha }}
+          format: sarif
+          output: trivy-image-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: 1             # hard gate — push is blocked if this fails
+      
+      # ── Trivy: scan repo files and dependencies ───────────────────────────
+      - name: Trivy — filesystem scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs-results.sarif
+          exit-code: 0             # non-blocking — findings go to Security tab only
+
+
+      # Upload both SARIF reports — runs even if a scan step fails
+      - name: Upload image scan → GitHub Security tab
+        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
+        if: always()
+        with:
+          sarif_file: trivy-image-results.sarif
+          category: trivy-image
+
+      - name: Upload filesystem scan → GitHub Security tab
+        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
+        if: always()
+        with:
+          sarif_file: trivy-fs-results.sarif
+          category: trivy-fs
+
+      # Only reached if the image scan passed (exit-code: 1 above)
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push FastAPI image
-        uses: docker/build-push-action@v5
+      - name: Push image
+        id: push
+        uses: docker/build-push-action@4f58ea79220b3119b1898628072b41ef32938869 # v5
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_write_around:latest
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_write_around:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_write_around:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Print pushed digest
+        run: echo "Pushed digest -> ${{ steps.push.outputs.digest }}"
