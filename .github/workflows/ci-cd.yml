@@ -55,12 +55,54 @@ jobs:
 
       - name: Run linter (ruff)
         run: uv run ruff check .
+      
+      # ── Hadolint: Lint the Dockerfile ────────────────────────────────────
+      - name: Run Dockerfile Linter (hadolint)
+        uses: hadolint/hadolint-action@54c9defbabec134371900d7fb4a7e94e50d6f600 # v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: warning  # Fails the build on warnings or errors
 
-#      - name: Run test
-#        env:
-#          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost/write_around_db
-#          REDIS_URL: redis://localhost:6379/0
-#        run: uv run pytest --tb=short -q
+      - name: Run test
+        # env:
+        #   DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost/write_around_db
+        #   REDIS_URL: redis://localhost:6379/0
+        # run: uv run pytest --tb=short -q
+        run: uv run pytest --cov=app --cov-fail-under=70
+
+# ─────────────────────────────────────────
+# JOB: CodeQL — Static Analysis (SAST)
+# ─────────────────────────────────────────
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+
+    permissions:
+      actions: read
+      contents: read
+      security-events: write   # required to upload results to Security tab
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
+        
+        with:
+          languages: python
+          # Optional: use extended query suite for broader coverage
+          queries: security-extended
+
+      # For interpreted languages like Python, CodeQL can autobuild.
+      # No manual build step needed.
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
+        with:
+          category: codeql-python
 
 # ─────────────────────────────────────────
 # JOB 2: Build & Push (only on main merges)
@@ -68,7 +110,7 @@ jobs:
   build_scan_and_push:
     name: Build, Scan & Push Docker Image
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, codeql]
     if: github.ref == 'refs/heads/main'
 
     permissions:

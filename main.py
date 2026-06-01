@@ -13,6 +13,11 @@ from app.lifespan import lifespan
 app = FastAPI(lifespan=lifespan)
 
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+
 @app.post("/items/")
 async def create_item(item: ItemSchema, db: SessionDep):
     """
@@ -50,7 +55,7 @@ async def read_item(item_id: int, db: SessionDep, redis: RedisDep) -> dict:
     """
     Write-Around with Redis
 
-    READ-THROUGH logic: Check Redis -> Check Postgres -> Populate Redis
+    READ-AROUND logic: Check Redis -> Check Postgres -> Populate Redis
     """
 
     # 1. Check Redis with AWAIT

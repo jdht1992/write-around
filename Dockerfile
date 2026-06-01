@@ -8,7 +8,11 @@ RUN apk update && apk upgrade --no-cache
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Upgrade the system pip to resolve its 2 vulnerabilities
-RUN python3 -m pip install --upgrade pip
+# hadolint ignore=DL3013
+RUN python3 -m pip install --no-cache-dir --upgrade pip
+
+# Create a non-root user and group
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -22,6 +26,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Copy the rest of the application source code into the container
 COPY . .
+
+# Transfer ownership of /app to the non-root user
+RUN chown -R appuser:appgroup /app
+
+# Switch to the non-root user — app no longer runs as root
+USER appuser
 
 # Default command to run the FastAPI application
 # We no longer use "uv run" because dependencies are in the global system path
