@@ -58,7 +58,8 @@ jobs:
       
       # ── Hadolint: Lint the Dockerfile ────────────────────────────────────
       - name: Run Dockerfile Linter (hadolint)
-        uses: hadolint/hadolint-action@54c9defbabec134371900d7fb4a7e94e50d6f600 # v3.1.0
+        uses: hadolint/hadolint-action@v3.1.0
+        # uses: hadolint/hadolint-action@54c9defbabec134371900d7fb4a7e94e50d6f600 # v3.1.0
         with:
           dockerfile: Dockerfile
           failure-threshold: warning  # Fails the build on warnings or errors
