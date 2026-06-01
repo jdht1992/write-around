@@ -58,8 +58,8 @@ jobs:
       
       # ── Hadolint: Lint the Dockerfile ────────────────────────────────────
       - name: Run Dockerfile Linter (hadolint)
-        uses: hadolint/hadolint-action@v3.1.0
-        # uses: hadolint/hadolint-action@54c9defbabec134371900d7fb4a7e94e50d6f600 # v3.1.0
+        # uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@54c9defbabec134371900d7fb4a7e94e50d6f600 # v3.1.0
         with:
           dockerfile: Dockerfile
           failure-threshold: warning  # Fails the build on warnings or errors
@@ -68,7 +68,6 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost/write_around_db
           REDIS_URL: redis://localhost:6379/0
-        #run: uv run pytest --tb=short -q
         run: uv run pytest --cov=app --cov-fail-under=60
 
 # ─────────────────────────────────────────
