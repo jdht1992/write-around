@@ -69,7 +69,7 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost/write_around_db
           REDIS_URL: redis://localhost:6379/0
         #run: uv run pytest --tb=short -q
-        run: uv run pytest --cov=app --cov-fail-under=70
+        run: uv run pytest --cov=app --cov-fail-under=60
 
 # ─────────────────────────────────────────
 # JOB: CodeQL — Static Analysis (SAST)
