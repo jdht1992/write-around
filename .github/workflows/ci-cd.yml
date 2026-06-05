@@ -121,6 +121,7 @@ jobs:
       security-events: write  # required to upload SARIF to GitHub Security tab
       packages: write          # CRITICAL: Allows pushing/pulling intermediate images to GHCR
       id-token: write         # CRITICAL: Enables OIDC keyless authentication for Cosign
+      attestations: write     # 👈 CRITICAL: Fixes "Resource not accessible by integration"    
     outputs:
       # Expose the immutable digest for downstream deploy jobs
       image-digest: ${{ steps.push.outputs.digest }}
