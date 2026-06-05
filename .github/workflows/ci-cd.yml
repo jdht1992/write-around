@@ -11,6 +11,9 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
 
+    env:
+      PYTHON_VERSION: "3.12"
+
     services:
       postgres:
         # Pin to an immutable SHA — never trust :latest or even :15 alone
@@ -48,7 +51,7 @@ jobs:
           enable-cache: true          # caches the uv package cache across runs
 
       - name: Set up Python
-        run: uv python install 3.12
+        run: uv python install ${PYTHON_VERSION}
 
       - name: Install dependencies
         run: uv sync --frozen --no-dev
@@ -105,7 +108,7 @@ jobs:
           category: codeql-python
 
 # ─────────────────────────────────────────
-# JOB 2: Build & Push (only on main merges)
+# JOB 2: Build, Scan, Push & Sign
 # ─────────────────────────────────────────
   build_scan_and_push:
     name: Build, Scan & Push Docker Image
@@ -114,8 +117,10 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     permissions:
+      contents: read
       security-events: write  # required to upload SARIF to GitHub Security tab
-
+      packages: write          # CRITICAL: Allows pushing/pulling intermediate images to GHCR
+      id-token: write         # CRITICAL: Enables OIDC keyless authentication for Cosign
     outputs:
       # Expose the immutable digest for downstream deploy jobs
       image-digest: ${{ steps.push.outputs.digest }}
@@ -127,20 +132,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@d586dba76842633160b90ff13307931c438ec12e # v4.0.0
 
-
-     # Build locally first — Trivy scans this before we push anything
-      - name: Build image
-        run: |
-          docker build \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_write_around:${{ github.sha }} \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_write_around:latest \
-            .
+      - name: Build Docker image
+        run: docker build -t ghcr.io/${{ github.repository_owner }}/fastapi_write_around:${{ github.sha }} .
 
       # ── Trivy: scan the local image before it ever reaches the registry ──
       - name: Trivy — image scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_write_around:${{ github.sha }}
+          image-ref: ghcr.io/${{ github.repository_owner }}/fastapi_write_around:${{ github.sha }}
           format: sarif
           output: trivy-image-results.sarif
           severity: CRITICAL,HIGH
@@ -155,7 +154,7 @@ jobs:
           scan-ref: .
           format: sarif
           output: trivy-fs-results.sarif
-          exit-code: 0             # non-blocking — findings go to Security tab only
+          exit-code: 0 # non-blocking — findings go to Security tab only
 
 
       # Upload both SARIF reports — runs even if a scan step fails
@@ -173,24 +172,60 @@ jobs:
           sarif_file: trivy-fs-results.sarif
           category: trivy-fs
 
-      # Only reached if the image scan passed (exit-code: 1 above)
-      - name: Log in to Docker Hub
+      # Log to GHCR to enable caching and optional push to GHCR (can be used as a backup registry)
+      - name: Log in to GitHub Container Registry(GHCR)
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Push image
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      # 6. Push final verified image to GHCR (Only reached if scan passes)
+      - name: Build and push intermediate image to GHCR
         id: push
         uses: docker/build-push-action@24e9b7e65fa9b24032c509eea5591c9f61aa18e6 # v6.18.0
         with:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_write_around:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_write_around:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/fastapi_write_around:latest
+            ghcr.io/${{ github.repository_owner }}/fastapi_write_around:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
+      
+      # Only reached if the image scan passed (exit-code: 1 above)
+ 
       - name: Print pushed digest
         run: echo "Pushed digest -> ${{ steps.push.outputs.digest }}"
+
+      # ─────────────────────────────────────────────────────────────────
+      # SUPPLY CHAIN SECURITY INTEGRATIONS (GHCR ONLY)
+      # ─────────────────────────────────────────────────────────────────
+
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@17ae1740179002c89186b61233e0f892c3118b11 # v0.23.0
+
+      - name: Generate SBOM with Syft
+        run: |
+          # Use Syft to index the verified image context matching your exact commit
+          syft ghcr.io/${{ github.repository_owner }}/fastapi_write_around:${{ github.sha }} -o spdx-json=sbom.spdx.json
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer-action@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+
+      - name: Sign the image and attach SBOM Attestation with Cosign
+        run: |
+          # Target the immutable registry URL path paired with the exact push digest hash
+          IMAGE_REF="ghcr.io/${{ github.repository_owner }}/fastapi_write_around@${{ steps.push.outputs.digest }}"
+          
+          # Cryptographically sign using GitHub's temporary OIDC identity certificate tokens
+          cosign sign --yes "$IMAGE_REF"
+          
+          # Notarize and append the valid Syft inventory JSON straight into your GHCR package tree
+          cosign attest --yes --type spdx --predicate sbom.spdx.json "$IMAGE_REF"
+
+      - name: Upload SBOM like artifact of workflow
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7
+        with:
+          name: sbom
+          path: sbom.spdx.json
