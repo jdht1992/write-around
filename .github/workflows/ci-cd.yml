@@ -71,7 +71,13 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost/write_around_db
           REDIS_URL: redis://localhost:6379/0
-        run: uv run pytest --cov=app --cov-fail-under=60
+        run: uv run pytest --cov=app --cov-fail-under=60 --junitxml=pytest-results.xml
+
+      - name: Upload test results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: pytest-results
+          path: pytest-results.xml
 
 # ─────────────────────────────────────────
 # JOB: CodeQL — Static Analysis (SAST)
@@ -79,6 +85,12 @@ jobs:
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ python ]
+        # python-version: [3.10, 3.11, 3.12]
 
     permissions:
       actions: read
@@ -91,9 +103,8 @@ jobs:
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
-        
         with:
-          languages: python
+          languages: ${{ matrix.language }}
           # Optional: use extended query suite for broader coverage
           queries: security-extended
 
@@ -105,6 +116,12 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
         with:
+          category: codeql-python
+
+      - name: Upload CodeQL results → GitHub Security tab
+        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
+        with:
+          sarif_file: codeql-results.sarif
           category: codeql-python
 
 # ─────────────────────────────────────────
