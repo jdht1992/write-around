@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: app-config
-  namespace: dev
+  namespace: argocd
 data:
   # Use the Service names from your other files
   POSTGRES_HOST: "postgres-svc" 

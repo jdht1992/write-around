@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: redis-pvc
-  namespace: dev
+  namespace: argocd
 spec:
   accessModes:
     - ReadWriteOnce
