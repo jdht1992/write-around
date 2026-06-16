@@ -11,7 +11,7 @@ spec:
     path: k8-dev-project
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd-demo-ns
+    namespace: argocd
   syncPolicy:
     automated:
       selfHeal: true
