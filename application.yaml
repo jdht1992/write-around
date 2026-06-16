@@ -6,9 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://https://github.com/jdht1992/write-around.git
+    repoURL: https://github.com/jdht1992/write-around.git
     targetRevision: HEAD
-    path: Kubernetes-manifest
+    path: k8-dev-project
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd-demo-ns
