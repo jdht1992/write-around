@@ -4,10 +4,10 @@ metadata:
   name: fastapi-service
   namespace: argocd         # Added namespace
 spec:
-  type: LoadBalancer
+  type: NodePort         # Expose the service on each Node's IP at a static port
   selector:
     app: fastapi         # Send traffic to Pods with this label
   ports:
   - port: 80            # The port the service exposes internally
     targetPort: 80      # Must match the Deployment's containerPort
-  #  nodePort: 30007     # Accessible via <NodeIP>:30007
+    nodePort: 30007     # Accessible via <NodeIP>:30007
