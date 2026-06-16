@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-deployment
+  namespace: argocd
+spec:
+  replicas: 7                                          # <<---- Number of Pod replicas to deploy & manage
+  selector:
+    matchLabels:
+      app: fastapi
+  revisionHistoryLimit: 5
+  progressDeadlineSeconds: 300    
+  minReadySeconds: 10
+  strategy:                                            # <<---- This block defines rolling update settings
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: fastapi
+    spec:
+      containers:
+      - name: fastapi
+        image: jdhet/fastapi_write_around:latest
+        ports:
+        - containerPort: 80
+        envFrom:
+          - configMapRef:
+              name: app-config
+          - secretRef:
+              name: db-secret
+        resources:
+          requests: { cpu: "100m", memory: "128Mi" }
+          limits:   { cpu: "500m", memory: "512Mi" }

@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitops-argocd-demo
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://https://github.com/jdht1992/write-around.git
+    targetRevision: HEAD
+    path: Kubernetes-manifest
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd-demo-ns
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
