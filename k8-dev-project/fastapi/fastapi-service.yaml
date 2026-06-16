@@ -11,3 +11,4 @@ spec:
   - port: 80            # The port the service exposes internally
     targetPort: 80      # Must match the Deployment's containerPort
     nodePort: 30007     # Accessible via <NodeIP>:30007
+
