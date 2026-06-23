@@ -22,7 +22,7 @@ async def db_engine():
 
     yield engine
 
-    # drop tables
+    # Drop tables once at the very end of the test run
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)
 
@@ -30,11 +30,22 @@ async def db_engine():
 
 
 @pytest.fixture
-async def db_session(db_engine):
-    TestingSessionLocal = async_sessionmaker(bind=db_engine, expire_on_commit=False)
-
-    async with TestingSessionLocal() as session:
-        yield session
+async def db_session(db_engine) -> AsyncGenerator:
+    # Connect to the database
+    async with db_engine.connect() as connection:
+        # Start a transaction
+        async with connection.begin() as transaction:
+            # Bind the session maker to this specific connection
+            TestingSessionLocal = async_sessionmaker(
+                bind=connection, 
+                expire_on_commit=False
+            )
+            
+            async with TestingSessionLocal() as session:
+                yield session
+            
+            # Roll back everything that happened inside this test
+            await transaction.rollback()
 
 
 @pytest.fixture
