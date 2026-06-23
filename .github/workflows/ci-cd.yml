@@ -283,6 +283,7 @@ jobs:
       contents: read
       id-token: write
       attestations: write
+      packages: write
 
     # Map pipeline parameters down to the reusable template
     with:
