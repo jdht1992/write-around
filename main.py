@@ -69,7 +69,7 @@ async def read_item(item_id: int, db: SessionDep, redis: RedisDep) -> dict:
     # Populate Redis cache for future requests
     await redis.setex(f"item:{item_id}", 300, json.dumps(db_item.dict()))
 
-    return {"source": "database", "data": db_item.dict()}
+    return {"source": "database", "data": db_item.model_dump()}
 
 
 @app.middleware("http")
