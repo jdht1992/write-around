@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/jdht1992/write-around.git
     targetRevision: HEAD
-    path: k8-dev-project
+    path: k8-dev-project/fastapi
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
