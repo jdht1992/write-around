@@ -272,10 +272,8 @@ jobs:
   push_dockerhub:
     name: Push to Docker Hub
     # Call the local reusable template file
-    # uses: ./.github/workflows/cd-dockerhub.yml
     uses: jdht1992/reusable-workflows/.github/workflows/cd-dockerhub.yml@main
 
-    # Preserve orchestration behavior
     needs: build_and_scan
     if: github.ref == 'refs/heads/main'
 
