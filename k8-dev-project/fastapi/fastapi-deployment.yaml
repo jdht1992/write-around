@@ -31,6 +31,14 @@ spec:
               name: app-config
           - secretRef:
               name: db-secret
+        readnessProbe:
+          httpGet: { path: /health, port: 80 }
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet: { path: /health, port: 80 }
+          initialDelaySeconds: 15
+          periodSeconds: 10
         resources:
           requests: { cpu: "100m", memory: "128Mi" }
           limits:   { cpu: "500m", memory: "512Mi" }
