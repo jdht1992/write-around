@@ -279,6 +279,12 @@ jobs:
     needs: build_and_scan
     if: github.ref == 'refs/heads/main'
 
+    # ─── ADD THIS PERMISSIONS BLOCK ───
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
     # Map pipeline parameters down to the reusable template
     with:
       image_name: "fastapi_write_around"
